@@ -1,8 +1,8 @@
-# RetailGenius: Text-to-Creative Campaign Generator
+# Retail Campaign Studio: Text-to-Creative Campaign Generator
 
 An AI-powered tool designed to democratize ad creation for retail advertisers. This application allows users to generate professional, retailer-compliant creative assets from simple text prompts, leveraging Generative AI concepts and a robust constraint-based compliance engine.
 
-## 🚀 Key Features
+## Key Features
 
 *   **Text-to-Creative Engine**: Generates campaign visuals based on natural language prompts (Powered by Pollinations.ai for prototype).
 *   **Compliance Constraint Engine**: Real-time validation against **Appendix B** retailer guidelines, including:
@@ -18,7 +18,7 @@ An AI-powered tool designed to democratize ad creation for retail advertisers. T
 *   **One-Click Auto-Fix**: Automatically corrects common compliance violations (e.g., rewriting prohibited copy).
 *   **Export**: Download high-quality PNGs ready for campaign submission.
 
-## 🛠️ Setup & Installation
+## Setup & Installation
 
 1.  **Prerequisites**: Ensure you have Node.js (v16+) installed.
 
@@ -35,7 +35,7 @@ An AI-powered tool designed to democratize ad creation for retail advertisers. T
 4.  **Open in Browser**:
     Navigate to `http://localhost:5173` (or the URL shown in your terminal).
 
-## 📖 Usage Guide
+## Usage Guide
 
 1.  **Start a Campaign**:
     *   Enter a prompt like *"New Summer Mango Drink, exclusive at Tesco"*.
@@ -55,7 +55,7 @@ An AI-powered tool designed to democratize ad creation for retail advertisers. T
     *   Select your desired format (e.g., Story 9:16).
     *   Click **Export** to download the PNG.
 
-## 📦 Dependencies
+## Dependencies
 
 *   **React + Vite**: Core framework for a fast, modern UI.
 *   **lucide-react**: Premium icon set.
