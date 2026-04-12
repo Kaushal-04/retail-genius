@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
-export function CompliancePanel({ results, onExport }) {
+export function CompliancePanel({ results, company, onExport }) {
     const passedCount = results.filter(r => r.status === 'pass').length;
     const totalCount = results.length;
 
@@ -10,14 +10,14 @@ export function CompliancePanel({ results, onExport }) {
             <div>
                 <h3 style={{ marginBottom: '8px' }}>Compliance Check</h3>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--color-text-muted)' }}>
-                    <span>Retailer Guidelines (Tesco)</span>
+                    <span>Retailer Guidelines ({company?.name || 'Standard'})</span>
                     <span style={{ color: passedCount === totalCount ? 'var(--color-accent)' : 'orange' }}>
                         {passedCount}/{totalCount} Passed
                     </span>
                 </div>
                 <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', marginTop: '8px', borderRadius: '2px' }}>
                     <div style={{
-                        width: `${(passedCount / totalCount) * 100}%`,
+                        width: `${totalCount === 0 ? 100 : (passedCount / totalCount) * 100}%`,
                         height: '100%',
                         background: passedCount === totalCount ? 'var(--color-accent)' : 'orange',
                         borderRadius: '2px',

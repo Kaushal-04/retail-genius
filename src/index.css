@@ -130,3 +130,8 @@ input:focus, textarea:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 4px hsla(var(--primary-hue), 70%, 50%, 0.1);
 }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

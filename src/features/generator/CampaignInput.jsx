@@ -7,17 +7,18 @@ const SUGGESTIONS = [
     "Vegan burger launch"
 ];
 
-export function CampaignInput({ onGenerate }) {
+export function CampaignInput({ companies = [], onGenerate }) {
     const [prompt, setPrompt] = useState('');
+    const [companyId, setCompanyId] = useState(companies[0]?.id || '');
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleGenerate = () => {
-        if (!prompt.trim()) return;
+        if (!prompt.trim() || !companyId) return;
         setIsGenerating(true);
         // Simulate API delay
         setTimeout(() => {
             setIsGenerating(false);
-            onGenerate(prompt);
+            onGenerate(prompt, companyId);
         }, 2500);
     };
 
@@ -32,6 +33,28 @@ export function CampaignInput({ onGenerate }) {
             </p>
 
             <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', position: 'relative' }}>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                    <select 
+                        value={companyId}
+                        onChange={e => setCompanyId(e.target.value)}
+                        style={{
+                            flex: 1,
+                            padding: '12px 16px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontSize: '16px',
+                            outline: 'none'
+                        }}
+                    >
+                        <option value="" disabled style={{ color: 'black' }}>Select Company</option>
+                        {companies.map(c => (
+                            <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.name}</option>
+                        ))}
+                    </select>
+                </div>
+
                 <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
@@ -74,19 +97,19 @@ export function CampaignInput({ onGenerate }) {
                     <button
                         className="glass-button"
                         onClick={handleGenerate}
-                        disabled={isGenerating}
+                        disabled={isGenerating || !companyId || !prompt.trim()}
                         style={{
                             padding: '12px 32px',
                             borderRadius: '30px',
                             fontSize: '16px',
                             fontWeight: 600,
-                            background: isGenerating ? 'var(--color-text-muted)' : 'var(--color-primary)',
+                            background: isGenerating || !companyId || !prompt.trim() ? 'var(--color-text-muted)' : 'var(--color-primary)',
                             border: 'none',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            opacity: isGenerating ? 0.7 : 1,
-                            cursor: isGenerating ? 'not-allowed' : 'pointer'
+                            opacity: isGenerating || !companyId || !prompt.trim() ? 0.7 : 1,
+                            cursor: isGenerating || !companyId || !prompt.trim() ? 'not-allowed' : 'pointer'
                         }}
                     >
                         {isGenerating ? (

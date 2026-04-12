@@ -12,15 +12,37 @@ const CANVASES = {
     LANDSCAPE: { width: 500, height: 261, label: 'Ad 1.91:1' }
 };
 
-export function CreativeWorkspace({ prompt, onBack }) {
+export function CreativeWorkspace({ prompt, company, onBack }) {
     const [format, setFormat] = useState('SQUARE');
+    const [bgImgLoaded, setBgImgLoaded] = useState(false);
+    const [bgImgError, setBgImgError] = useState(false);
+    const [bgImgSrc, setBgImgSrc] = useState(
+        `https://image.pollinations.ai/prompt/${encodeURIComponent('professional retail product photography, ' + prompt + ', white background, studio lighting, sharp focus, high quality, commercial photo')}?width=800&height=800&nologo=true&model=flux&seed=42`
+    );
+
+    const retryImage = () => {
+        setBgImgLoaded(false);
+        setBgImgError(false);
+        const newSeed = Math.floor(Math.random() * 99999);
+        setBgImgSrc(`https://image.pollinations.ai/prompt/${encodeURIComponent('professional retail product photography, ' + prompt + ', white background, studio lighting, sharp focus, high quality, commercial photo')}?width=800&height=800&nologo=true&model=flux&seed=${newSeed}`);
+    };
+
+    const resolveDefaultTag = () => {
+        const tagRule = company?.compliances?.find(r => r.type === 'required-tags');
+        if (tagRule && tagRule.value) {
+            const tags = tagRule.value.split(',').map(t => t.trim()).filter(t => t);
+            if (tags.length > 0) return tags[0];
+        }
+        return `Available at ${company?.name || 'Store'}`;
+    };
 
     // Layers with more properties for manipulation
     const [layers, setLayers] = useState([
         {
             id: 'bg',
             type: 'image',
-            src: `https://image.pollinations.ai/prompt/professional%20product%20photography%20of%20${encodeURIComponent(prompt)}?width=1080&height=1080&nologo=true&seed=${Math.floor(Math.random() * 1000)}`,
+            src: bgImgSrc,
+            // Note: Do NOT add crossOrigin here — Pollinations rejects CORS requests from localhost
             x: 0,
             y: 0,
             width: '100%',
@@ -31,7 +53,7 @@ export function CreativeWorkspace({ prompt, onBack }) {
         { id: 'headline', type: 'text', text: prompt || 'New Product Launch', fontSize: 24, x: 20, y: 40, rotate: 0, color: '#000000', zIndex: 10 },
         { id: 'subhead', type: 'text', text: 'Summer vibes. 50% discount!', fontSize: 16, x: 20, y: 80, rotate: 0, color: '#333333', zIndex: 10 },
         { id: 'cta', type: 'text', text: 'Buy Now', fontSize: 14, x: 20, y: 150, rotate: 0, color: '#ffffff', bg: '#00539f', padding: '8px 16px', borderRadius: '4px', zIndex: 10 },
-        { id: 'tag', type: 'text', text: 'Available at Tesco', fontSize: 12, x: 20, y: 350, rotate: 0, color: '#333333', zIndex: 10 },
+        { id: 'tag', type: 'text', text: resolveDefaultTag(), fontSize: 12, x: 20, y: 350, rotate: 0, color: '#333333', zIndex: 10 },
     ]);
 
     const [validationResults, setValidationResults] = useState([]);
@@ -41,18 +63,43 @@ export function CreativeWorkspace({ prompt, onBack }) {
     const canvasRef = useRef(null);
 
     useEffect(() => {
-        const results = validateCreative(layers, prompt, format);
+        const results = validateCreative(layers, prompt, format, company);
         setValidationResults(results);
-    }, [layers, prompt, format]);
+    }, [layers, prompt, format, company]);
 
     const updateLayer = (id, updates) => {
         setLayers(layers.map(l => l.id === id ? { ...l, ...updates } : l));
     };
 
-    const handleDrag = (id, e, data) => {
-        // In a real app we'd map pixels to percentages for responsiveness, 
-        // but for prototype we just track x/y relative to container
-        updateLayer(id, { x: data.x, y: data.y });
+    // Distinguish click vs drag using onDrag events
+    // hasDragged[id] = true only if the mouse moved > DRAG_THRESHOLD px
+    const hasDragged = useRef({});
+    const dragOrigin = useRef({});  // raw mouse coords at mousedown
+    const DRAG_THRESHOLD = 6; // pixels before a move is considered a drag
+
+    const handleDragStart = (id, e, data) => {
+        hasDragged.current[id] = false;
+        dragOrigin.current[id] = { x: e.clientX, y: e.clientY };
+        setSelectedLayerId(id);
+    };
+
+    const handleDragging = (id, e) => {
+        if (hasDragged.current[id]) return; // already flagged
+        const origin = dragOrigin.current[id];
+        if (!origin) return;
+        const dx = Math.abs(e.clientX - origin.x);
+        const dy = Math.abs(e.clientY - origin.y);
+        if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+            hasDragged.current[id] = true;
+        }
+    };
+
+    const handleDragStop = (id, e, data) => {
+        // Only persist new position if user actually dragged
+        if (hasDragged.current[id]) {
+            updateLayer(id, { x: data.x, y: data.y });
+        }
+        hasDragged.current[id] = false;
     };
 
     const handleUpload = (e) => {
@@ -78,7 +125,11 @@ export function CreativeWorkspace({ prompt, onBack }) {
     const handleDownload = async () => {
         if (canvasRef.current) {
             try {
-                const canvas = await html2canvas(canvasRef.current, { backgroundColor: null, useCORS: true });
+                const canvas = await html2canvas(canvasRef.current, {
+                    backgroundColor: null,
+                    useCORS: true,
+                    allowTaint: true
+                });
                 const link = document.createElement('a');
                 link.download = `creative_${format.toLowerCase()}.png`;
                 link.href = canvas.toDataURL();
@@ -90,12 +141,42 @@ export function CreativeWorkspace({ prompt, onBack }) {
     };
 
     const handleAutoFix = () => {
-        setLayers(layers.map(l => {
-            if (l.id === 'subhead') {
-                return { ...l, text: l.text.replace('50% discount!', 'Great value') };
+        const newLayers = layers.map(l => ({ ...l }));
+        company?.compliances?.forEach(rule => {
+            if (rule.type === 'disallowed-words') {
+                const words = (rule.value || '').split(',').map(w => w.trim().toLowerCase()).filter(w => w);
+                newLayers.forEach(l => {
+                    if (l.type === 'text') {
+                        let newText = l.text;
+                        words.forEach(w => {
+                            const regex = new RegExp(w, 'gi');
+                            newText = newText.replace(regex, '');
+                        });
+                        l.text = newText.replace(/\s+/g, ' ').trim();
+                    }
+                });
             }
-            return l;
-        }));
+            if (rule.type === 'min-font-size') {
+                const minSize = parseInt(rule.value, 10);
+                newLayers.forEach(l => {
+                    if (l.type === 'text' && l.fontSize < minSize) {
+                        l.fontSize = minSize;
+                    }
+                });
+            }
+            if (rule.type === 'required-tags') {
+                const tags = (rule.value || '').split(',').map(t => t.trim().toLowerCase()).filter(t => t);
+                const fullText = newLayers.filter(l => l.type === 'text').map(l => l.text.toLowerCase()).join(' ');
+                const hasRequiredTag = tags.some(t => fullText.includes(t));
+                if (!hasRequiredTag && tags.length > 0) {
+                    const tagLayer = newLayers.find(l => l.id === 'tag');
+                    if (tagLayer) {
+                        tagLayer.text = tags[0]; // capitalize it nicely ideally, but lowercase is fine or preserve original case
+                    }
+                }
+            }
+        });
+        setLayers(newLayers);
     };
 
     const selectedLayer = layers.find(l => l.id === selectedLayerId);
@@ -186,7 +267,7 @@ export function CreativeWorkspace({ prompt, onBack }) {
                                 transition: 'width 0.3s, height 0.3s',
                                 overflow: 'hidden' // Clip content
                             }}
-                            onClick={() => setSelectedLayerId(null)}
+                            onClick={(e) => { if (e.target === e.currentTarget) setSelectedLayerId(null); }}
                         >
                             {/* Render Layers */}
                             {layers.sort((a, b) => a.zIndex - b.zIndex).map(layer => {
@@ -232,18 +313,65 @@ export function CreativeWorkspace({ prompt, onBack }) {
                                         key={layer.id}
                                         nodeRef={nodeRef}
                                         position={{ x: layer.x, y: layer.y }}
-                                        onStop={(e, data) => handleDrag(layer.id, e, data)}
-                                        onStart={() => setSelectedLayerId(layer.id)}
+                                        onStart={(e, data) => handleDragStart(layer.id, e, data)}
+                                        onDrag={(e) => handleDragging(layer.id, e)}
+                                        onStop={(e, data) => handleDragStop(layer.id, e, data)}
                                     >
                                         {/* Draggable child must forward ref */}
                                         <div
                                             ref={nodeRef}
                                             style={layerStyle}
-                                            onClick={(e) => { e.stopPropagation(); setSelectedLayerId(layer.id); }}
+                                            onMouseDown={(e) => { e.stopPropagation(); setSelectedLayerId(layer.id); }}
                                         >
                                             <div style={contentStyle}>
                                                 {layer.type === 'image' ? (
-                                                    <img src={layer.src} alt="" style={{ width: '100%', height: '100%' }} />
+                                                    <>
+                                                        {layer.id === 'bg' && !bgImgLoaded && !bgImgError && (
+                                                            <div style={{
+                                                                position: 'absolute', inset: 0,
+                                                                background: 'linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 50%, #e0e0e0 100%)',
+                                                                backgroundSize: '200% 200%',
+                                                                animation: 'shimmer 1.5s infinite',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontSize: '12px',
+                                                                color: '#999'
+                                                            }}>
+                                                                Generating image...
+                                                            </div>
+                                                        )}
+                                                        {layer.id === 'bg' && bgImgError && (
+                                                            <div style={{
+                                                                position: 'absolute', inset: 0,
+                                                                background: 'linear-gradient(135deg, #f0f0f0, #ddd)',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                color: '#999', fontSize: '13px', flexDirection: 'column', gap: '10px'
+                                                            }}>
+                                                                <span>⚠️ Image generation timed out</span>
+                                                                <button
+                                                                    onClick={retryImage}
+                                                                    style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '6px', background: '#00539f', color: '#fff', border: 'none', cursor: 'pointer' }}
+                                                                >
+                                                                    🔄 Retry
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        <img
+                                                            src={layer.id === 'bg' ? bgImgSrc : layer.src}
+                                                            alt=""
+
+                                                            onLoad={() => { if (layer.id === 'bg') setBgImgLoaded(true); }}
+                                                            onError={() => { if (layer.id === 'bg') setBgImgError(true); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                height: '100%',
+                                                                objectFit: 'cover',
+                                                                opacity: layer.id === 'bg' ? (bgImgLoaded ? 1 : 0) : 1,
+                                                                transition: 'opacity 0.5s ease'
+                                                            }}
+                                                        />
+                                                    </>
                                                 ) : (
                                                     layer.text
                                                 )}
@@ -331,7 +459,7 @@ export function CreativeWorkspace({ prompt, onBack }) {
             </div>
 
             {/* Far Right Sidebar - Compliance */}
-            <CompliancePanel results={validationResults} onExport={handleDownload} />
+            <CompliancePanel results={validationResults} company={company} onExport={handleDownload} />
 
         </div>
     );

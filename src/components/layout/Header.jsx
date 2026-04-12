@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sparkles, Layout, Settings } from 'lucide-react';
 
-export function Header() {
+export function Header({ view, setView }) {
     return (
         <header className="glass-panel" style={{
             position: 'sticky',
@@ -23,14 +23,29 @@ export function Header() {
                         <Sparkles color="white" size={20} fill="white" fillOpacity={0.2} />
                     </div>
                     <h1 style={{ fontSize: '20px', margin: 0 }}>
-                        Retail<span className="primary-gradient">Genius</span>
+                        Retail Campaign <span className="primary-gradient">Studio</span>
                     </h1>
                 </div>
 
                 <nav style={{ display: 'flex', gap: '24px' }}>
-                    <button style={{ color: 'var(--color-text)', opacity: 1, fontWeight: 500 }}>Create</button>
-                    <button onClick={() => alert("Library feature coming soon!")} style={{ color: 'var(--color-text-muted)' }}>Library</button>
-                    <button onClick={() => alert("Guidelines feature coming soon!")} style={{ color: 'var(--color-text-muted)' }}>Guidelines</button>
+                    <button 
+                        onClick={() => setView('input')} 
+                        style={{ color: view === 'input' ? 'var(--color-primary)' : 'var(--color-text)', opacity: 1, fontWeight: view === 'input' ? 600 : 500 }}
+                    >
+                        Generate Poster
+                    </button>
+                    <button 
+                        onClick={() => setView('register_compliance')} 
+                        style={{ color: view === 'register_compliance' ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: view === 'register_compliance' ? 600 : 500 }}
+                    >
+                        Register Compliances
+                    </button>
+                    <button 
+                        onClick={() => setView('edit_compliance')} 
+                        style={{ color: view === 'edit_compliance' ? 'var(--color-primary)' : 'var(--color-text)', fontWeight: view === 'edit_compliance' ? 600 : 500 }}
+                    >
+                        Edit Compliance
+                    </button>
                 </nav>
 
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
